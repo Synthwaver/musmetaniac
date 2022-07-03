@@ -1,0 +1,133 @@
+﻿@page "/recenttracks"
+@using Musmetaniac.Web.Common.Models
+@inject HttpClient _http
+
+<PageTitle>Recent tracks</PageTitle>
+
+<h1>Recent Tracks</h1>
+
+Username <input type="text" value="@_insertedUsername" @onchange="HandleUsernameChange"/>
+<button class="btn btn-primary" @onclick="HandleUpdateClick">Update</button>
+<br/>
+
+@if (!_errorMessage.IsNullOrEmpty())
+{
+    <b style="color:red">@_errorMessage</b>
+    <br/>
+}
+
+Limit 
+<select class="dropdown" value="@_trackLimit" @onchange="HandleLimitChange">
+    @foreach (var number in Enumerable.Range(1, 5))
+    {
+        <option value="@number">@number</option>
+    }
+</select>
+<br/>
+
+@if (_recentTracks != null)
+{
+    <br/><br/>
+    <h3>Recent tracks for "@_username"</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Track</th>
+                <th>Artist</th>
+                <th>Tags</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var track in _recentTracks.Take(_trackLimit))
+            {
+                <tr>
+                    <td>
+                        <a href="@track.Url">@track.Name</a>
+                    </td>
+                    <td>@track.ArtistName</td>
+                    <td>
+                        @foreach (var tag in track.TopTags)
+                        {
+                            <a href="@tag.Url">@tag.Name</a><text> | </text>
+                        }
+                    </td>
+                    <td>
+                        @if (track.IsPlayingNow)
+                        {
+                            <text>(Playing Now)</text>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@implements IAsyncDisposable
+@code {
+    private readonly TimeSpan _pollingPeriod = TimeSpan.FromSeconds(5);
+
+    private List<RecentTracksModel.Track> _recentTracks;
+    private PollingJob<RecentTracksModel> _recentTracksPollingJob;
+
+    private string _insertedUsername = "";
+    private string _username = "";
+    private int _trackLimit = 3;
+    private string _errorMessage;
+
+    public ValueTask DisposeAsync()
+    {
+        return _recentTracksPollingJob.DisposeAsync();
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        _recentTracksPollingJob = _http.Poll(new PollingJob<RecentTracksModel>.Options
+        {
+            Url = GetRecentTracksUrl(),
+            SuccessCallback = model => _recentTracks = model.Tracks.ToList(),
+            FailCallback = message => _errorMessage = message,
+            StopOnFail = true,
+            CompleteCallback = StateHasChanged,
+            PollingPeriod = _pollingPeriod,
+            StartImmediately = false,
+        });
+
+        return Task.CompletedTask;
+    }
+
+    private void HandleUsernameChange(ChangeEventArgs e)
+    {
+        _insertedUsername = e.Value?.ToString() ?? "";
+    }
+
+    private void HandleLimitChange(ChangeEventArgs e)
+    {
+        _trackLimit = int.Parse(e.Value!.ToString()!);
+        _recentTracksPollingJob.Url = GetRecentTracksUrl();
+
+        if (!_recentTracksPollingJob.IsStopped)
+            _recentTracksPollingJob.Restart();
+    }
+
+    private void HandleUpdateClick()
+    {
+        _errorMessage = null;
+        _username = _insertedUsername;
+        _recentTracksPollingJob.Stop();
+
+        if (_username.IsNullOrEmpty())
+        {
+            _errorMessage = "Username is required.";
+            _recentTracks?.Clear();
+
+            return;
+        }
+
+        _recentTracksPollingJob.Url = GetRecentTracksUrl();
+        _recentTracksPollingJob.Restart();
+    }
+
+    private string GetRecentTracksUrl() => UrlProvider.GetRecentTracksUrl(_username, _trackLimit);
+}
