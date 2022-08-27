@@ -10,8 +10,8 @@ namespace Musmetaniac.Services.LastFmApi
 
         private readonly string _apiKey;
 
-        private UserClient _userClient;
-        private TrackClient _trackClient;
+        private UserClient? _userClient;
+        private TrackClient? _trackClient;
 
         public UserClient User => _userClient ??= new UserClient(_httpClient, _apiKey);
         public TrackClient Track => _trackClient ??= new TrackClient(_httpClient, _apiKey);
@@ -24,7 +24,6 @@ namespace Musmetaniac.Services.LastFmApi
         public void Dispose()
         {
             _httpClient.Dispose();
-
             GC.SuppressFinalize(this);
         }
     }

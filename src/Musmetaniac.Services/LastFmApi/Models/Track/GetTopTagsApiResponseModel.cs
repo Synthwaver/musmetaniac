@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json;
 
+#nullable disable warnings
+
 namespace Musmetaniac.Services.LastFmApi.Models.Track
 {
     public class GetTopTagsApiResponseModel

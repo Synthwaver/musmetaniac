@@ -19,7 +19,7 @@ namespace Musmetaniac.Web.Client
             });
         }
 
-        private static string GetUrl<TParams>(string relativeUrl, TParams queryStringParameters = null) where TParams : class
+        private static string GetUrl<TParams>(string relativeUrl, TParams? queryStringParameters = null) where TParams : class
         {
             return GetUrl(relativeUrl, queryStringParameters.ToQueryString());
         }
@@ -29,7 +29,7 @@ namespace Musmetaniac.Web.Client
             return GetUrl(relativeUrl, queryString?.ToUriComponent());
         }
 
-        private static string GetUrl(string relativeUrl, string queryString = null)
+        private static string GetUrl(string relativeUrl, string? queryString = null)
         {
             return new UriBuilder(new Uri(BaseUrl, relativeUrl).ToString())
             {

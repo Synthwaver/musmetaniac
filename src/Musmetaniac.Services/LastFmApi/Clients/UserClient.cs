@@ -14,11 +14,15 @@ namespace Musmetaniac.Services.LastFmApi.Clients
 
         public async Task<GetRecentTracksModel> GetRecentTracksAsync(GetRecentTracksRequestModel model)
         {
-            var responseModel = await GetAsync<GetRecentTracksApiResponseModel>("user.getRecentTracks", new Dictionary<string, string>
+            var parameters = new Dictionary<string, string>
             {
                 ["user"] = model.Username,
-                ["limit"] = model.Limit.ToString(),
-            });
+            };
+
+            if (model.Limit.HasValue)
+                parameters["limit"] = model.Limit.ToString()!;
+
+            var responseModel = await GetAsync<GetRecentTracksApiResponseModel>("user.getRecentTracks", parameters);
 
             return new GetRecentTracksModel
             {

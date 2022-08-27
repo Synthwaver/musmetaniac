@@ -7,9 +7,9 @@ namespace Musmetaniac.Web.Common.Extensions
 {
     public static class QueryStringExtensions
     {
-        public static QueryString ToQueryString<T>(this T self) where T : class
+        public static QueryString ToQueryString<T>(this T? self) where T : class
         {
-            var queryParameters = new Dictionary<string, string>();
+            var queryParameters = new Dictionary<string, string?>();
 
             foreach (var property in typeof(T).GetProperties())
             {

@@ -1,4 +1,6 @@
-﻿namespace Musmetaniac.Services.LastFmApi.Models.Track
+﻿#nullable disable warnings
+
+namespace Musmetaniac.Services.LastFmApi.Models.Track
 {
     public class GetTopTagsRequestModel
     {

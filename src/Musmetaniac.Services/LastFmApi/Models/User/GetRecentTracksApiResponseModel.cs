@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json;
 
+#nullable disable warnings
+
 namespace Musmetaniac.Services.LastFmApi.Models.User
 {
     public class GetRecentTracksApiResponseModel
@@ -21,7 +23,7 @@ namespace Musmetaniac.Services.LastFmApi.Models.User
             public string Url { get; set; }
 
             [JsonProperty("@attr")]
-            public AttributesModel Attributes { get; set; }
+            public AttributesModel? Attributes { get; set; }
         }
 
         public class Artist

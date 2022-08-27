@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using Microsoft.AspNetCore.Http;
 using Musmetaniac.Common.Exceptions;
@@ -12,6 +11,7 @@ namespace Musmetaniac.Web.Serverless.Extensions
         public static T FromQueryString<T>(this HttpRequest self) where T : new()
         {
             var resultObject = new T();
+            var nullabilityInfoContext = new NullabilityInfoContext();
 
             foreach (var property in typeof(T).GetProperties())
             {
@@ -22,10 +22,10 @@ namespace Musmetaniac.Web.Serverless.Extensions
                 var isPropertyProvided = self.Query.TryGetValue(property.Name, out var stringValue);
                 if (!isPropertyProvided)
                 {
-                    var propertyCanBeNull = !propertyType.IsValueType || Nullable.GetUnderlyingType(propertyType) != null;
-                    var isPropertyRequired = !propertyCanBeNull || property.GetCustomAttribute(typeof(RequiredAttribute)) != null;
+                    var nullabilityInfo = nullabilityInfoContext.Create(property);
+                    var isNullable = nullabilityInfo.ReadState == NullabilityState.Nullable || nullabilityInfo.WriteState == NullabilityState.Nullable;
 
-                    if (isPropertyRequired)
+                    if (!isNullable)
                         throw new BusinessException($"Property '{property.Name}' is required.");
 
                     continue;
@@ -36,7 +36,7 @@ namespace Musmetaniac.Web.Serverless.Extensions
 
                 try
                 {
-                    propertyValue = typeConverter.ConvertFromInvariantString(stringValue);
+                    propertyValue = typeConverter.ConvertFromInvariantString(stringValue)!;
                 }
                 catch (ArgumentException)
                 {

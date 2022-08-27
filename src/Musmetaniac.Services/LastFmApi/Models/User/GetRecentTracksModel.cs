@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 
+#nullable disable warnings
+
 namespace Musmetaniac.Services.LastFmApi.Models.User
 {
     public class GetRecentTracksModel

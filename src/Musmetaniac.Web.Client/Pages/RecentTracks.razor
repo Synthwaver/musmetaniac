@@ -68,28 +68,28 @@ Limit
 @code {
     private readonly TimeSpan _pollingPeriod = TimeSpan.FromSeconds(5);
 
-    private List<RecentTracksModel.Track> _recentTracks;
-    private PollingJob<RecentTracksModel> _recentTracksPollingJob;
+    private List<RecentTracksModel.Track>? _recentTracks;
+    private PollingJob<RecentTracksModel> _recentTracksPollingJob = null!;
 
     private string _insertedUsername = "";
     private string _username = "";
     private int _trackLimit = 3;
-    private string _errorMessage;
+    private string? _errorMessage;
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        return _recentTracksPollingJob.DisposeAsync();
+        await _recentTracksPollingJob.DisposeAsync();
+        GC.SuppressFinalize(this);
     }
 
     protected override Task OnInitializedAsync()
     {
-        _recentTracksPollingJob = _http.Poll(new PollingJob<RecentTracksModel>.Options
+        _recentTracksPollingJob = _http.Poll(new PollingJob<RecentTracksModel>.Options(GetRecentTracksUrl())
         {
-            Url = GetRecentTracksUrl(),
             SuccessCallback = model => _recentTracks = model.Tracks.ToList(),
             FailCallback = message => _errorMessage = message,
             StopOnFail = true,
-            CompleteCallback = StateHasChanged,
+            CompletionCallback = StateHasChanged,
             PollingPeriod = _pollingPeriod,
             StartImmediately = false,
         });

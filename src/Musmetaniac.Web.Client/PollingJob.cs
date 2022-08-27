@@ -16,9 +16,9 @@ namespace Musmetaniac.Web.Client
         private readonly CancellationTokenSource _cancellationTokenSource = new();
 
         public string Url { get; set; }
-        public Action<TResult> SuccessCallback { get; set; }
-        public Action<string> FailCallback { get; set; }
-        public Action CompletionCallback { get; set; }
+        public Action<TResult>? SuccessCallback { get; set; }
+        public Action<string>? FailCallback { get; set; }
+        public Action? CompletionCallback { get; set; }
         public bool StopOnFail { get; set; }
 
         public bool IsStopped { get; private set; }
@@ -29,12 +29,12 @@ namespace Musmetaniac.Web.Client
             Url = options.Url;
             SuccessCallback = options.SuccessCallback;
             FailCallback = options.FailCallback;
-            CompletionCallback = options.CompleteCallback;
+            CompletionCallback = options.CompletionCallback;
             StopOnFail = options.StopOnFail;
             IsStopped = !options.StartImmediately;
 
             _httpClient = httpClient;
-            _timer = new Timer(DoPeriodicCall, null, options.StartImmediately ? TimeSpan.Zero : Timeout.InfiniteTimeSpan, _pollingPeriod);
+            _timer = new Timer(_ => DoPeriodicCall(), null, options.StartImmediately ? TimeSpan.Zero : Timeout.InfiniteTimeSpan, _pollingPeriod);
         }
 
         public void Restart()
@@ -58,7 +58,7 @@ namespace Musmetaniac.Web.Client
             GC.SuppressFinalize(this);
         }
 
-        private async void DoPeriodicCall(object state)
+        private async Task DoPeriodicCall()
         {
             try
             {
@@ -77,10 +77,10 @@ namespace Musmetaniac.Web.Client
 
                 var content = await response.Content.ReadAsStringAsync(_cancellationTokenSource.Token);
 
-                if (response.IsSuccessStatusCode)
-                    SuccessCallback?.Invoke(content.FromJson<TResult>());
+                if (!response.IsSuccessStatusCode || content.IsNullOrEmpty())
+                    OnFail(content.FromJson<ErrorResult>()?.Message ?? "Unexpected server response format.");
                 else
-                    OnFail(content.FromJson<ErrorResult>().Message);
+                    SuccessCallback?.Invoke(content.FromJson<TResult>()!);
 
                 CompletionCallback?.Invoke();
             }
@@ -100,12 +100,17 @@ namespace Musmetaniac.Web.Client
         public class Options
         {
             public string Url { get; set; }
-            public Action<TResult> SuccessCallback { get; set; }
-            public Action<string> FailCallback { get; set; }
-            public Action CompleteCallback { get; set; }
+            public Action<TResult>? SuccessCallback { get; set; }
+            public Action<string>? FailCallback { get; set; }
+            public Action? CompletionCallback { get; set; }
             public TimeSpan? PollingPeriod { get; set; }
             public bool StopOnFail { get; set; }
             public bool StartImmediately { get; set; } = true;
+
+            public Options(string url)
+            {
+                Url = url;
+            }
         }
     }
 }

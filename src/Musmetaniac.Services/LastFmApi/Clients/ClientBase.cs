@@ -2,7 +2,6 @@
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Musmetaniac.Common.Extensions;
 using Musmetaniac.Services.Exceptions;
@@ -36,13 +35,13 @@ namespace Musmetaniac.Services.LastFmApi.Clients
 
             HandleErrors(response, responseContent);
 
-            return responseContent.FromJson<T>();
+            return responseContent.FromJson<T>()!;
         }
 
-        private static void HandleErrors(HttpResponseMessage responseMessage, string responseContent)
+        private static void HandleErrors(HttpResponseMessage responseMessage, string? responseContent)
         {
             var errorContent = responseContent.FromJson<ErrorResponseModel>();
-            if (errorContent.Error.HasValue)
+            if (errorContent?.Error != null)
                 throw new LastFmApiRequestException(errorContent.Message);
 
             if (!responseMessage.IsSuccessStatusCode)
@@ -52,7 +51,7 @@ namespace Musmetaniac.Services.LastFmApi.Clients
         protected class ErrorResponseModel
         {
             public int? Error { get; set; }
-            public string Message { get; set; }
+            public string? Message { get; set; }
         }
     }
 }

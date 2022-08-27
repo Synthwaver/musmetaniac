@@ -1,4 +1,6 @@
-﻿namespace Musmetaniac.Services.LastFmApi.Models.User
+﻿#nullable disable warnings
+
+namespace Musmetaniac.Services.LastFmApi.Models.User
 {
     public class GetRecentTracksRequestModel
     {

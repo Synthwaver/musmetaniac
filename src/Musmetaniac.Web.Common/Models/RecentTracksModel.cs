@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 
+#nullable disable warnings
+
 namespace Musmetaniac.Web.Common.Models
 {
     public class RecentTracksModel
