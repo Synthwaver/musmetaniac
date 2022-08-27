@@ -19,7 +19,7 @@ namespace Musmetaniac.Web.Serverless.Extensions
                 if (!propertyType.IsValueType && propertyType != typeof(string))
                     throw new NotSupportedException();
 
-                var isPropertyProvided = self.Query.TryGetValue(property.Name, out var stringValue);
+                var isPropertyProvided = self.Query.TryGetValue(property.Name, out var stringValues);
                 if (!isPropertyProvided)
                 {
                     var nullabilityInfo = nullabilityInfoContext.Create(property);
@@ -31,12 +31,15 @@ namespace Musmetaniac.Web.Serverless.Extensions
                     continue;
                 }
 
+                if (stringValues.Count > 1)
+                    throw new BusinessException($"Property '{property.Name}' is presented several times.");
+
                 var typeConverter = TypeDescriptor.GetConverter(property.PropertyType);
                 object propertyValue;
 
                 try
                 {
-                    propertyValue = typeConverter.ConvertFromInvariantString(stringValue)!;
+                    propertyValue = typeConverter.ConvertFromInvariantString(stringValues)!;
                 }
                 catch (ArgumentException)
                 {
