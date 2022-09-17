@@ -64,7 +64,7 @@ Limit
     </table>
 }
 
-@implements IAsyncDisposable
+@implements IDisposable
 @code {
     private readonly TimeSpan _pollingPeriod = TimeSpan.FromSeconds(5);
 
@@ -76,9 +76,9 @@ Limit
     private int _trackLimit = 3;
     private string? _errorMessage;
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        await _recentTracksPollingJob.DisposeAsync();
+        _recentTracksPollingJob.Dispose();
         GC.SuppressFinalize(this);
     }
 

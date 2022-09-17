@@ -7,13 +7,13 @@ using Musmetaniac.Web.Common.Models;
 
 namespace Musmetaniac.Web.Client
 {
-    public class PollingJob<TResult> : IAsyncDisposable where TResult : class
+    public class PollingJob<TResult> : IDisposable where TResult : class
     {
         private readonly HttpClient _httpClient;
-        private readonly Timer _timer;
         private readonly TimeSpan _pollingPeriod;
         private readonly TimeSpan _defaultPollingPeriod = TimeSpan.FromSeconds(5);
-        private readonly CancellationTokenSource _cancellationTokenSource = new();
+
+        private CancellationTokenSource? _cancellationTokenSource;
 
         public string Url { get; set; }
         public Action<TResult>? SuccessCallback { get; set; }
@@ -21,51 +21,65 @@ namespace Musmetaniac.Web.Client
         public Action? CompletionCallback { get; set; }
         public bool StopOnFail { get; set; }
 
-        public bool IsStopped { get; private set; }
+        public bool IsStopped => _cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested;
 
         public PollingJob(HttpClient httpClient, Options options)
         {
+            _httpClient = httpClient;
             _pollingPeriod = options.PollingPeriod ?? _defaultPollingPeriod;
             Url = options.Url;
             SuccessCallback = options.SuccessCallback;
             FailCallback = options.FailCallback;
             CompletionCallback = options.CompletionCallback;
             StopOnFail = options.StopOnFail;
-            IsStopped = !options.StartImmediately;
 
-            _httpClient = httpClient;
-            _timer = new Timer(_ => DoPeriodicCall(), null, options.StartImmediately ? TimeSpan.Zero : Timeout.InfiniteTimeSpan, _pollingPeriod);
+            if (options.StartImmediately)
+                Restart();
         }
 
         public void Restart()
         {
-            IsStopped = false;
-            _timer.Change(TimeSpan.Zero, _pollingPeriod);
+            if (!IsStopped)
+                Stop();
+
+            _cancellationTokenSource ??= new CancellationTokenSource();
+            _ = RunPeriodicTimerAsync(_cancellationTokenSource.Token);
         }
 
         public void Stop()
         {
-            IsStopped = true;
-            _timer.Change(Timeout.InfiniteTimeSpan, _pollingPeriod);
+            if (IsStopped)
+                return;
+
+            _cancellationTokenSource!.Cancel();
+            _cancellationTokenSource!.Dispose();
         }
 
-        public async ValueTask DisposeAsync()
+        public void Dispose()
         {
-            _cancellationTokenSource.Cancel();
-            _cancellationTokenSource.Dispose();
-            await _timer.DisposeAsync();
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource?.Dispose();
 
             GC.SuppressFinalize(this);
         }
 
-        private async Task DoPeriodicCall()
+        private async Task RunPeriodicTimerAsync(CancellationToken cancellationToken)
+        {
+            using var periodicTimer = new PeriodicTimer(_pollingPeriod);
+            do
+            {
+                await DoPeriodicCallAsync(cancellationToken);
+            } while (await periodicTimer.WaitForNextTickAsync(cancellationToken));
+        }
+
+        private async Task DoPeriodicCallAsync(CancellationToken cancellationToken)
         {
             try
             {
                 HttpResponseMessage response;
                 try
                 {
-                    response = await _httpClient.GetAsync(Url, _cancellationTokenSource.Token);
+                    response = await _httpClient.GetAsync(Url, cancellationToken);
                 }
                 catch (HttpRequestException)
                 {
@@ -75,7 +89,7 @@ namespace Musmetaniac.Web.Client
                     return;
                 }
 
-                var content = await response.Content.ReadAsStringAsync(_cancellationTokenSource.Token);
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
                 if (!response.IsSuccessStatusCode || content.IsNullOrEmpty())
                     OnFail(content.FromJson<ErrorResult>()?.Message ?? "Unexpected server response format.");
@@ -84,7 +98,7 @@ namespace Musmetaniac.Web.Client
 
                 CompletionCallback?.Invoke();
             }
-            catch (TaskCanceledException) when (_cancellationTokenSource.Token.IsCancellationRequested)
+            catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
             {
             }
         }
