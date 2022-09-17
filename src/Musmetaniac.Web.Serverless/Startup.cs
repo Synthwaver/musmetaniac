@@ -23,7 +23,7 @@ namespace Musmetaniac.Web.Serverless
 
         public override void ConfigureAppConfiguration(IFunctionsConfigurationBuilder builder)
         {
-            builder.ConfigurationBuilder.SetBasePath(Environment.CurrentDirectory)
+            builder.ConfigurationBuilder.SetBasePath(builder.GetContext().ApplicationRootPath)
                 .AddJsonFile("settings.json")
                 .AddJsonFile("local.settings.json", optional: true)
                 .AddUserSecrets(Assembly.GetExecutingAssembly(), optional: true)
