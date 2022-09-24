@@ -22,16 +22,7 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Publish Project
-        run: dotnet publish  ${{ env.WEBAPP_PROJECT_PATH }} -c Release --output release --nologo
-
-      # Change the base-tag in index.html to match GitHub Pages repository subdirectory
-      - name: Change base-tag in index.html from / to ${{ github.event.repository.name }}
-        run: sed -i 's/<base href="\/" \/>/<base href="\/${{ github.event.repository.name }}\/" \/>/g' release/wwwroot/index.html
-
-      # Add .nojekyll file to tell GitHub pages to not treat this as a Jekyll project.
-      # (Allow files and folders starting with an underscore)
-      - name: Add .nojekyll file
-        run: touch release/wwwroot/.nojekyll
+        run: dotnet publish  ${{ env.WEBAPP_PROJECT_PATH }} -c Release --output release --nologo -p:GHPages=true
 
       - name: Upload files to gh-pages branch
         uses: JamesIves/github-pages-deploy-action@v4.4.0
