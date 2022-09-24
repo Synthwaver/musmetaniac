@@ -1,6 +1,7 @@
 ﻿@page "/recenttracks"
 @using Musmetaniac.Web.Common.Models
 @inject HttpClient _http
+@inject IMusmetaniacApiRequestMessageProvider _musmetaniacApiRequestMessageProvider
 
 <PageTitle>Recent tracks</PageTitle>
 
@@ -84,7 +85,7 @@ Limit
 
     protected override Task OnInitializedAsync()
     {
-        _recentTracksPollingJob = _http.Poll(new PollingJob<RecentTracksModel>.Options(GetRecentTracksUrl())
+        _recentTracksPollingJob = _http.Poll(new PollingJob<RecentTracksModel>.Options(GetRecentTracksRequestMessage)
         {
             SuccessCallback = model => _recentTracks = model.Tracks.ToList(),
             FailCallback = message => _errorMessage = message,
@@ -105,7 +106,6 @@ Limit
     private void HandleLimitChange(ChangeEventArgs e)
     {
         _trackLimit = int.Parse(e.Value!.ToString()!);
-        _recentTracksPollingJob.Url = GetRecentTracksUrl();
 
         if (!_recentTracksPollingJob.IsStopped)
             _recentTracksPollingJob.Restart();
@@ -125,9 +125,8 @@ Limit
             return;
         }
 
-        _recentTracksPollingJob.Url = GetRecentTracksUrl();
         _recentTracksPollingJob.Restart();
     }
 
-    private string GetRecentTracksUrl() => UrlProvider.GetRecentTracksUrl(_username, _trackLimit);
+    private HttpRequestMessage GetRecentTracksRequestMessage() => _musmetaniacApiRequestMessageProvider.GetRecentTracksRequestMessage(_username, _trackLimit);
 }

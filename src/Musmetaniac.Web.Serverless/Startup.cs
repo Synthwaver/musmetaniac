@@ -1,12 +1,11 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Musmetaniac.Services;
+using Musmetaniac.Web.Common.Extensions;
 using Musmetaniac.Web.Serverless;
-using Musmetaniac.Web.Serverless.Extensions;
 
 [assembly: FunctionsStartup(typeof(Startup))]
 namespace Musmetaniac.Web.Serverless
@@ -15,7 +14,9 @@ namespace Musmetaniac.Web.Serverless
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.Configure<ServiceAppSettings>("AppSettings");
+            var configuration = builder.GetContext().Configuration;
+            builder.Services.ConfigureOptions<ServiceAppSettings>(configuration.GetSection("AppSettings"));
+
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddSingleton<IFunctionFilter, HandleFunctionExceptionFilter>();
             builder.Services.AddSingleton<IRecentTracksService, RecentTracksService>();

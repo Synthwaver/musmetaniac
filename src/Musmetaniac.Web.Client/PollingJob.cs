@@ -15,7 +15,7 @@ namespace Musmetaniac.Web.Client
 
         private CancellationTokenSource? _cancellationTokenSource;
 
-        public string Url { get; set; }
+        public Func<HttpRequestMessage> RequestMessageFactory { get; set; }
         public Action<TResult>? SuccessCallback { get; set; }
         public Action<string>? FailCallback { get; set; }
         public Action? CompletionCallback { get; set; }
@@ -27,7 +27,7 @@ namespace Musmetaniac.Web.Client
         {
             _httpClient = httpClient;
             _pollingPeriod = options.PollingPeriod ?? _defaultPollingPeriod;
-            Url = options.Url;
+            RequestMessageFactory = options.RequestMessageFactory;
             SuccessCallback = options.SuccessCallback;
             FailCallback = options.FailCallback;
             CompletionCallback = options.CompletionCallback;
@@ -39,10 +39,9 @@ namespace Musmetaniac.Web.Client
 
         public void Restart()
         {
-            if (!IsStopped)
-                Stop();
+            Stop();
 
-            _cancellationTokenSource ??= new CancellationTokenSource();
+            _cancellationTokenSource = new CancellationTokenSource();
             _ = RunPeriodicTimerAsync(_cancellationTokenSource.Token);
         }
 
@@ -53,6 +52,7 @@ namespace Musmetaniac.Web.Client
 
             _cancellationTokenSource!.Cancel();
             _cancellationTokenSource!.Dispose();
+            _cancellationTokenSource = null;
         }
 
         public void Dispose()
@@ -79,7 +79,7 @@ namespace Musmetaniac.Web.Client
                 HttpResponseMessage response;
                 try
                 {
-                    response = await _httpClient.GetAsync(Url, cancellationToken);
+                    response = await _httpClient.SendAsync(RequestMessageFactory(), cancellationToken);
                 }
                 catch (HttpRequestException)
                 {
@@ -101,6 +101,10 @@ namespace Musmetaniac.Web.Client
             catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
             {
             }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync(ex.Message);
+            }
         }
 
         private void OnFail(string message)
@@ -113,7 +117,7 @@ namespace Musmetaniac.Web.Client
 
         public class Options
         {
-            public string Url { get; set; }
+            public Func<HttpRequestMessage> RequestMessageFactory { get; set; }
             public Action<TResult>? SuccessCallback { get; set; }
             public Action<string>? FailCallback { get; set; }
             public Action? CompletionCallback { get; set; }
@@ -121,9 +125,9 @@ namespace Musmetaniac.Web.Client
             public bool StopOnFail { get; set; }
             public bool StartImmediately { get; set; } = true;
 
-            public Options(string url)
+            public Options(Func<HttpRequestMessage> requestMessageFactory)
             {
-                Url = url;
+                RequestMessageFactory = requestMessageFactory;
             }
         }
     }

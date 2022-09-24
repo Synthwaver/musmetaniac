@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Options;
 using Musmetaniac.Common.Exceptions;
 using Musmetaniac.Common.Extensions;
 using Musmetaniac.Services.Exceptions;
@@ -23,9 +22,9 @@ namespace Musmetaniac.Services
 
         private readonly ServiceAppSettings _serviceAppSettings;
 
-        public RecentTracksService(IOptions<ServiceAppSettings> serviceAppSettings)
+        public RecentTracksService(ServiceAppSettings serviceAppSettings)
         {
-            _serviceAppSettings = serviceAppSettings.Value;
+            _serviceAppSettings = serviceAppSettings;
         }
 
         public async Task<IReadOnlyCollection<Track>> GetRecentTracks(string username, int? limit)
