@@ -2,6 +2,7 @@
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Musmetaniac.Common.Extensions;
 using Musmetaniac.Web.Common.Models;
 
@@ -10,125 +11,114 @@ namespace Musmetaniac.Web.Client
     public class PollingJob<TResult> : IDisposable where TResult : class
     {
         private readonly HttpClient _httpClient;
+        private readonly ILogger? _logger;
+        private readonly Func<HttpRequestMessage> _requestMessageFactory;
         private readonly TimeSpan _pollingPeriod;
-        private readonly TimeSpan _defaultPollingPeriod = TimeSpan.FromSeconds(5);
+        private readonly bool _stopOnFail;
+        private readonly Action<TResult>? _successCallback;
+        private readonly Action<string>? _failureCallback;
+        private readonly Action? _finallyCallback;
 
         private CancellationTokenSource? _cancellationTokenSource;
 
-        public Func<HttpRequestMessage> RequestMessageFactory { get; set; }
-        public Action<TResult>? SuccessCallback { get; set; }
-        public Action<string>? FailCallback { get; set; }
-        public Action? CompletionCallback { get; set; }
-        public bool StopOnFail { get; set; }
+        public bool IsStarted => _cancellationTokenSource is { IsCancellationRequested: false };
 
-        public bool IsStopped => _cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested;
-
-        public PollingJob(HttpClient httpClient, Options options)
+        public PollingJob(HttpClient httpClient, Func<HttpRequestMessage> requestMessageFactory, PollingJobOptions<TResult> options, ILogger? logger = null)
         {
             _httpClient = httpClient;
-            _pollingPeriod = options.PollingPeriod ?? _defaultPollingPeriod;
-            RequestMessageFactory = options.RequestMessageFactory;
-            SuccessCallback = options.SuccessCallback;
-            FailCallback = options.FailCallback;
-            CompletionCallback = options.CompletionCallback;
-            StopOnFail = options.StopOnFail;
-
-            if (options.StartImmediately)
-                Restart();
+            _logger = logger;
+            _requestMessageFactory = requestMessageFactory;
+            _pollingPeriod = options.PollingPeriod ?? TimeSpan.FromSeconds(5);
+            _stopOnFail = options.StopOnFail;
+            _successCallback = options.SuccessCallback;
+            _failureCallback = options.FailureCallback;
+            _finallyCallback = options.FinallyCallback;
         }
 
-        public void Restart()
+        public void Run()
         {
-            Stop();
-
+            DisposeCancellationTokenSource();
             _cancellationTokenSource = new CancellationTokenSource();
             _ = RunPeriodicTimerAsync(_cancellationTokenSource.Token);
         }
 
         public void Stop()
         {
-            if (IsStopped)
-                return;
-
-            _cancellationTokenSource!.Cancel();
-            _cancellationTokenSource!.Dispose();
-            _cancellationTokenSource = null;
+            DisposeCancellationTokenSource();
         }
 
         public void Dispose()
         {
-            _cancellationTokenSource?.Cancel();
-            _cancellationTokenSource?.Dispose();
-
+            DisposeCancellationTokenSource();
             GC.SuppressFinalize(this);
         }
 
         private async Task RunPeriodicTimerAsync(CancellationToken cancellationToken)
         {
-            using var periodicTimer = new PeriodicTimer(_pollingPeriod);
-            do
-            {
-                await DoPeriodicCallAsync(cancellationToken);
-            } while (await periodicTimer.WaitForNextTickAsync(cancellationToken));
-        }
-
-        private async Task DoPeriodicCallAsync(CancellationToken cancellationToken)
-        {
             try
             {
-                HttpResponseMessage response;
-                try
+                using var periodicTimer = new PeriodicTimer(_pollingPeriod);
+                do
                 {
-                    response = await _httpClient.SendAsync(RequestMessageFactory(), cancellationToken);
-                }
-                catch (HttpRequestException)
-                {
-                    OnFail("Network error.");
-                    CompletionCallback?.Invoke();
-
-                    return;
-                }
-
-                var content = await response.Content.ReadAsStringAsync(cancellationToken);
-
-                if (!response.IsSuccessStatusCode || content.IsNullOrEmpty())
-                    OnFail(content.FromJson<ErrorResult>()?.Message ?? "Unexpected server response format.");
-                else
-                    SuccessCallback?.Invoke(content.FromJson<TResult>()!);
-
-                CompletionCallback?.Invoke();
+                    await DoPeriodicCallAsync(cancellationToken);
+                } while (await periodicTimer.WaitForNextTickAsync(cancellationToken));
             }
-            catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
             }
             catch (Exception ex)
             {
-                await Console.Error.WriteLineAsync(ex.Message);
+                _logger?.LogError(ex, "An error occurred while running the polling job.");
             }
         }
 
-        private void OnFail(string message)
+        private async Task DoPeriodicCallAsync(CancellationToken cancellationToken)
         {
-            if (StopOnFail)
-                Stop();
-
-            FailCallback?.Invoke(message);
-        }
-
-        public class Options
-        {
-            public Func<HttpRequestMessage> RequestMessageFactory { get; set; }
-            public Action<TResult>? SuccessCallback { get; set; }
-            public Action<string>? FailCallback { get; set; }
-            public Action? CompletionCallback { get; set; }
-            public TimeSpan? PollingPeriod { get; set; }
-            public bool StopOnFail { get; set; }
-            public bool StartImmediately { get; set; } = true;
-
-            public Options(Func<HttpRequestMessage> requestMessageFactory)
+            HttpResponseMessage response;
+            try
             {
-                RequestMessageFactory = requestMessageFactory;
+                response = await _httpClient.SendAsync(_requestMessageFactory(), cancellationToken);
+            }
+            catch (HttpRequestException)
+            {
+                HandleFailure("Network error.");
+                _finallyCallback?.Invoke();
+
+                return;
+            }
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode || content.IsNullOrEmpty())
+                HandleFailure(content.FromJson<ErrorResult>()?.Message ?? "Unexpected server response format.");
+            else
+                _successCallback?.Invoke(content.FromJson<TResult>()!);
+
+            _finallyCallback?.Invoke();
+
+            void HandleFailure(string message)
+            {
+                if (_stopOnFail)
+                    Stop();
+
+                _failureCallback?.Invoke(message);
             }
         }
+
+        private void DisposeCancellationTokenSource()
+        {
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+        }
+    }
+
+    public class PollingJobOptions<TResult>
+    {
+        public Action<TResult>? SuccessCallback { get; set; }
+        public Action<string>? FailureCallback { get; set; }
+        public Action? FinallyCallback { get; set; }
+        public TimeSpan? PollingPeriod { get; set; }
+        public bool StopOnFail { get; set; }
     }
 }

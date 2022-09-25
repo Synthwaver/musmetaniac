@@ -1,6 +1,6 @@
 ﻿@page "/recenttracks"
 @using Musmetaniac.Web.Common.Models
-@inject HttpClient _http
+@inject IPollingHelper _pollingHelper
 @inject IMusmetaniacApiRequestMessageProvider _musmetaniacApiRequestMessageProvider
 
 <PageTitle>Recent tracks</PageTitle>
@@ -83,19 +83,18 @@ Limit
         GC.SuppressFinalize(this);
     }
 
-    protected override Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        _recentTracksPollingJob = _http.Poll(new PollingJob<RecentTracksModel>.Options(GetRecentTracksRequestMessage)
+        _recentTracksPollingJob = _pollingHelper.CreatePollingJob(GetRecentTracksRequestMessage, new PollingJobOptions<RecentTracksModel>
         {
             SuccessCallback = model => _recentTracks = model.Tracks.ToList(),
-            FailCallback = message => _errorMessage = message,
-            StopOnFail = true,
-            CompletionCallback = StateHasChanged,
+            FailureCallback = message => _errorMessage = message,
+            FinallyCallback = StateHasChanged,
             PollingPeriod = _pollingPeriod,
-            StartImmediately = false,
+            StopOnFail = true,
         });
 
-        return Task.CompletedTask;
+        HttpRequestMessage GetRecentTracksRequestMessage() => _musmetaniacApiRequestMessageProvider.GetRecentTracksRequestMessage(_username, _trackLimit);
     }
 
     private void HandleUsernameChange(ChangeEventArgs e)
@@ -107,15 +106,15 @@ Limit
     {
         _trackLimit = int.Parse(e.Value!.ToString()!);
 
-        if (!_recentTracksPollingJob.IsStopped)
-            _recentTracksPollingJob.Restart();
+        if (_recentTracksPollingJob.IsStarted)
+            _recentTracksPollingJob.Run();
     }
 
     private void HandleUpdateClick()
     {
+        _recentTracksPollingJob.Stop();
         _errorMessage = null;
         _username = _insertedUsername;
-        _recentTracksPollingJob.Stop();
 
         if (_username.IsNullOrEmpty())
         {
@@ -125,8 +124,6 @@ Limit
             return;
         }
 
-        _recentTracksPollingJob.Restart();
+        _recentTracksPollingJob.Run();
     }
-
-    private HttpRequestMessage GetRecentTracksRequestMessage() => _musmetaniacApiRequestMessageProvider.GetRecentTracksRequestMessage(_username, _trackLimit);
 }
