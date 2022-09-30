@@ -23,7 +23,7 @@ namespace Musmetaniac.Web.Serverless
         public async Task<ActionResult<RecentTracksModel>> Run([HttpTrigger(HttpMethodNames.Get, Route = Routes.RecentTracks)] HttpRequest request)
         {
             var model = request.FromQueryString<RecentTracksRequestModel>();
-            var recentTracks = await _recentTracksService.GetRecentTracks(model.Username, model.Limit ?? 5);
+            var recentTracks = await _recentTracksService.GetRecentTracks(model.Username, model.Limit ?? 5, model.From);
 
             const int maxTagCount = 5;
 
@@ -36,6 +36,7 @@ namespace Musmetaniac.Web.Serverless
                     AlbumName = t.AlbumName,
                     Url = t.Url,
                     IsPlayingNow = t.IsPlayingNow,
+                    ScrobbledAt = t.ScrobbledAt,
                     TopTags = t.Tags.Select(tt => new RecentTracksModel.Tag
                     {
                         Name = tt.Name,

@@ -21,6 +21,7 @@ namespace Musmetaniac.Services.LastFmApi.Models.User
             public Artist Artist { get; set; }
             public Album Album { get; set; }
             public string Url { get; set; }
+            public Date? Date { get; set; }
 
             [JsonProperty("@attr")]
             public AttributesModel? Attributes { get; set; }
@@ -41,6 +42,12 @@ namespace Musmetaniac.Services.LastFmApi.Models.User
         public class AttributesModel
         {
             public bool NowPlaying { get; set; }
+        }
+
+        public class Date
+        {
+            [JsonProperty("uts")]
+            public long UnixTimeSeconds { get; set; }
         }
     }
 }

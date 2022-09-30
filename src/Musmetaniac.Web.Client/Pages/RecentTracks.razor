@@ -26,7 +26,7 @@ Limit
 </select>
 <br/>
 
-@if (_recentTracks != null)
+@if (_recentTracks.Count != 0)
 {
     <br/><br/>
     <h3>Recent tracks for "@_username"</h3>
@@ -69,7 +69,7 @@ Limit
 @code {
     private readonly TimeSpan _pollingPeriod = TimeSpan.FromSeconds(5);
 
-    private List<RecentTracksModel.Track>? _recentTracks;
+    private List<RecentTracksModel.Track> _recentTracks = new();
     private PollingJob<RecentTracksModel> _recentTracksPollingJob = null!;
 
     private string _insertedUsername = "";
@@ -87,14 +87,27 @@ Limit
     {
         _recentTracksPollingJob = _pollingHelper.CreatePollingJob(GetRecentTracksRequestMessage, new PollingJobOptions<RecentTracksModel>
         {
-            SuccessCallback = model => _recentTracks = model.Tracks.ToList(),
+            SuccessCallback = model =>
+            {
+                // The track playing now is temporary and is updated with each request.
+                // Since it may stop playing and disappear from the list, we always store one more track
+                // to display tracks according to the selected limit.
+                _recentTracks.RemoveAll(t => t.IsPlayingNow);
+                _recentTracks = model.Tracks.Concat(_recentTracks).Take(_trackLimit + 1).ToList();
+            },
             FailureCallback = message => _errorMessage = message,
             FinallyCallback = StateHasChanged,
             PollingPeriod = _pollingPeriod,
             StopOnFail = true,
         });
 
-        HttpRequestMessage GetRecentTracksRequestMessage() => _musmetaniacApiRequestMessageProvider.GetRecentTracksRequestMessage(_username, _trackLimit);
+
+        HttpRequestMessage GetRecentTracksRequestMessage()
+        {
+            var mostRecentTrackScrobbledAt = _recentTracks.FirstOrDefault(t => !t.IsPlayingNow)?.ScrobbledAt;
+
+            return _musmetaniacApiRequestMessageProvider.GetRecentTracksRequestMessage(_username, _trackLimit, from: mostRecentTrackScrobbledAt?.AddSeconds(1));
+        }
     }
 
     private void HandleUsernameChange(ChangeEventArgs e)
@@ -119,7 +132,7 @@ Limit
         if (_username.IsNullOrEmpty())
         {
             _errorMessage = "Username is required.";
-            _recentTracks?.Clear();
+            _recentTracks.Clear();
 
             return;
         }

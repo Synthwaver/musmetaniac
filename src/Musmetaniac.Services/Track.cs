@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 #nullable disable warnings
 
@@ -11,6 +12,7 @@ namespace Musmetaniac.Services
         public string AlbumName { get; set; }
         public string Url { get; set; }
         public bool IsPlayingNow { get; set; }
+        public DateTime? ScrobbledAt { get; set; }
         public IReadOnlyCollection<Tag> Tags { get; set; }
 
         public class Tag

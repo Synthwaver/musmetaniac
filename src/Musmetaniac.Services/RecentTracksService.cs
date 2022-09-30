@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Musmetaniac.Common.Exceptions;
@@ -12,7 +13,7 @@ namespace Musmetaniac.Services
 {
     public interface IRecentTracksService
     {
-        Task<IReadOnlyCollection<Track>> GetRecentTracks(string username, int? limit);
+        Task<IReadOnlyCollection<Track>> GetRecentTracks(string username, int? limit = null, DateTime? from = null);
     }
 
     public class RecentTracksService : IRecentTracksService
@@ -27,7 +28,7 @@ namespace Musmetaniac.Services
             _serviceAppSettings = serviceAppSettings;
         }
 
-        public async Task<IReadOnlyCollection<Track>> GetRecentTracks(string username, int? limit)
+        public async Task<IReadOnlyCollection<Track>> GetRecentTracks(string username, int? limit = null, DateTime? from = null)
         {
             if (username.IsNullOrEmpty())
                 throw new BusinessException("Username is required.");
@@ -44,6 +45,7 @@ namespace Musmetaniac.Services
                 {
                     Username = username,
                     Limit = limit,
+                    From = from,
                 });
             }
             catch (LastFmApiRequestException exception)
@@ -61,6 +63,7 @@ namespace Musmetaniac.Services
                 AlbumName = t.Album.Name,
                 Url = t.Url,
                 IsPlayingNow = t.IsPlayingNow,
+                ScrobbledAt = t.ScrobbledAt,
             }).ToArray();
 
             var topTagsModelTasks = tracks.Select(t => lastFmApiClient.Track.GetTopTagsAsync(new GetTopTagsRequestModel

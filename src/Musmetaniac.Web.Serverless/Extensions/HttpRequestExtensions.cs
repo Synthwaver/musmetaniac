@@ -1,8 +1,10 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Globalization;
 using System.Reflection;
 using Microsoft.AspNetCore.Http;
 using Musmetaniac.Common.Exceptions;
+using Musmetaniac.Web.Common;
 
 namespace Musmetaniac.Web.Serverless.Extensions
 {
@@ -34,14 +36,18 @@ namespace Musmetaniac.Web.Serverless.Extensions
                 if (stringValues.Count > 1)
                     throw new BusinessException($"Property '{property.Name}' is presented several times.");
 
-                var typeConverter = TypeDescriptor.GetConverter(property.PropertyType);
+                if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                    propertyType = Nullable.GetUnderlyingType(propertyType)!;
+
                 object propertyValue;
 
                 try
                 {
-                    propertyValue = typeConverter.ConvertFromInvariantString(stringValues)!;
+                    propertyValue = propertyType == typeof(DateTime)
+                        ? DateTime.ParseExact(stringValues, QueryStringConst.DateTimeFormat, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal).ToUniversalTime()
+                        : TypeDescriptor.GetConverter(propertyType).ConvertFromInvariantString(stringValues)!;
                 }
-                catch (ArgumentException)
+                catch
                 {
                     throw new BusinessException($"Property '{property.Name}' is invalid.");
                 }

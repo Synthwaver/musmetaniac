@@ -17,7 +17,18 @@ namespace Musmetaniac.Web.Common.Extensions
                 if (!propertyType.IsValueType && propertyType != typeof(string))
                     throw new NotSupportedException();
 
-                queryParameters.Add(property.Name, property.GetValue(self)?.ToString());
+                var propertyValue = property.GetValue(self);
+                if (propertyValue == null)
+                    continue;
+
+                if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                    propertyType = Nullable.GetUnderlyingType(propertyType);
+
+                var parameterValue = propertyType == typeof(DateTime)
+                    ? ((DateTime)propertyValue).ToUniversalTime().ToString(QueryStringConst.DateTimeFormat)
+                    : propertyValue.ToString();
+
+                queryParameters.Add(property.Name, parameterValue);
             }
 
             return new QueryBuilder(queryParameters).ToQueryString();

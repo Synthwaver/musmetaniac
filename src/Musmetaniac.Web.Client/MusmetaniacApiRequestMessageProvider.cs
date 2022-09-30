@@ -9,7 +9,7 @@ namespace Musmetaniac.Web.Client
 {
     public interface IMusmetaniacApiRequestMessageProvider
     {
-        HttpRequestMessage GetRecentTracksRequestMessage(string username, int limit);
+        HttpRequestMessage GetRecentTracksRequestMessage(string username, int limit, DateTime? from = null);
     }
 
     public class MusmetaniacApiRequestMessageProvider : IMusmetaniacApiRequestMessageProvider
@@ -23,12 +23,13 @@ namespace Musmetaniac.Web.Client
             _baseUrl = new Uri(_appSettings.MusmetaniacApiBaseUrl);
         }
 
-        public HttpRequestMessage GetRecentTracksRequestMessage(string username, int limit)
+        public HttpRequestMessage GetRecentTracksRequestMessage(string username, int limit, DateTime? from = null)
         {
             return CreateRequestMessage(HttpMethod.Get, Routes.RecentTracks, new RecentTracksRequestModel
             {
                 Username = username,
                 Limit = limit,
+                From = from,
             });
         }
 

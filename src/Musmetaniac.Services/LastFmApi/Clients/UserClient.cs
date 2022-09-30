@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -20,7 +21,10 @@ namespace Musmetaniac.Services.LastFmApi.Clients
             };
 
             if (model.Limit.HasValue)
-                parameters["limit"] = model.Limit.ToString()!;
+                parameters["limit"] = model.Limit.Value.ToString();
+
+            if (model.From.HasValue)
+                parameters["from"] = new DateTimeOffset(model.From.Value.ToUniversalTime()).ToUnixTimeSeconds().ToString();
 
             var responseModel = await GetAsync<GetRecentTracksApiResponseModel>("user.getRecentTracks", parameters);
 
@@ -39,6 +43,7 @@ namespace Musmetaniac.Services.LastFmApi.Clients
                     },
                     Url = t.Url,
                     IsPlayingNow = t.Attributes?.NowPlaying ?? false,
+                    ScrobbledAt = t.Date == null ? null : DateTimeOffset.FromUnixTimeSeconds(t.Date.UnixTimeSeconds).UtcDateTime,
                 }).ToArray(),
             };
         }
