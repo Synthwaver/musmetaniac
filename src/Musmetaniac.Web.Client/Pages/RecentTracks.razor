@@ -117,9 +117,13 @@ Limit
 
     private void HandleLimitChange(ChangeEventArgs e)
     {
-        _trackLimit = int.Parse(e.Value!.ToString()!);
+        var shouldResumePolling = _recentTracksPollingJob.IsStarted;
+        _recentTracksPollingJob.Stop();
 
-        if (_recentTracksPollingJob.IsStarted)
+        _trackLimit = int.Parse(e.Value!.ToString()!);
+        _recentTracks.Clear();
+
+        if (shouldResumePolling)
             _recentTracksPollingJob.Run();
     }
 
