@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Musmetaniac.Services.LastFmApi.Models.User;
+using Newtonsoft.Json.Linq;
 
 namespace Musmetaniac.Services.LastFmApi.Clients
 {
@@ -26,11 +27,18 @@ namespace Musmetaniac.Services.LastFmApi.Clients
             if (model.From.HasValue)
                 parameters["from"] = new DateTimeOffset(model.From.Value.ToUniversalTime()).ToUnixTimeSeconds().ToString();
 
-            var responseModel = await GetAsync<GetRecentTracksApiResponseModel>("user.getRecentTracks", parameters);
+            var responseJson = await GetJsonAsync("user.getRecentTracks", parameters);
+
+            var tracksJToken = JToken.Parse(responseJson).SelectToken("recenttracks.track")!;
+
+            if (tracksJToken is not JArray)
+                tracksJToken = new JArray(tracksJToken);
+
+            var tracks = tracksJToken.ToObject<GetRecentTracksApiResponseModel.Track[]>()!;
 
             return new GetRecentTracksModel
             {
-                Tracks = responseModel.RecentTracks.Tracks.Select(t => new GetRecentTracksModel.Track
+                Tracks = tracks.Select(t => new GetRecentTracksModel.Track
                 {
                     Name = t.Name,
                     Artist = new GetRecentTracksModel.Artist

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http.Extensions;
 using Musmetaniac.Common.Extensions;
 using Musmetaniac.Services.Exceptions;
+using Newtonsoft.Json.Linq;
 
 namespace Musmetaniac.Services.LastFmApi.Clients
 {
@@ -21,6 +22,11 @@ namespace Musmetaniac.Services.LastFmApi.Clients
 
         protected async Task<T> GetAsync<T>(string apiMethod, IReadOnlyCollection<KeyValuePair<string, string>> parameters) where T : class
         {
+            return (await GetJsonAsync(apiMethod, parameters)).FromJson<T>()!;
+        }
+
+        protected async Task<string> GetJsonAsync(string apiMethod, IReadOnlyCollection<KeyValuePair<string, string>> parameters)
+        {
             parameters = new Dictionary<string, string>
             {
                 ["api_key"] = _apiKey,
@@ -33,25 +39,20 @@ namespace Musmetaniac.Services.LastFmApi.Clients
             var response = await _httpClient.GetAsync(query);
             var responseContent = await response.Content.ReadAsStringAsync();
 
-            HandleErrors(response, responseContent);
+            ThrowIfResponseHasError(response, responseContent);
 
-            return responseContent.FromJson<T>()!;
+            return responseContent;
         }
 
-        private static void HandleErrors(HttpResponseMessage responseMessage, string? responseContent)
+        private static void ThrowIfResponseHasError(HttpResponseMessage responseMessage, string responseContent)
         {
-            var errorContent = responseContent.FromJson<ErrorResponseModel>();
-            if (errorContent?.Error != null)
-                throw new LastFmApiRequestException(errorContent.Message);
+            var jToken = JToken.Parse(responseContent);
+
+            if (jToken.Value<int?>("error").HasValue)
+                throw new LastFmApiRequestException(jToken.Value<string>("message"));
 
             if (!responseMessage.IsSuccessStatusCode)
                 throw new LastFmApiRequestException(responseMessage.ReasonPhrase);
-        }
-
-        protected class ErrorResponseModel
-        {
-            public int? Error { get; set; }
-            public string? Message { get; set; }
         }
     }
 }
