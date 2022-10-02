@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Http;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Musmetaniac.Common.Extensions;
 using Musmetaniac.Web.Common;
 using Musmetaniac.Web.Common.Extensions;
@@ -14,12 +15,14 @@ namespace Musmetaniac.Web.Client
 
     public class MusmetaniacApiRequestMessageProvider : IMusmetaniacApiRequestMessageProvider
     {
+        private readonly IWebAssemblyHostEnvironment _hostEnvironment;
         private readonly AppSettings _appSettings;
         private readonly Uri _baseUrl;
 
-        public MusmetaniacApiRequestMessageProvider(AppSettings appSettings)
+        public MusmetaniacApiRequestMessageProvider(AppSettings appSettings, IWebAssemblyHostEnvironment hostEnvironment)
         {
             _appSettings = appSettings;
+            _hostEnvironment = hostEnvironment;
             _baseUrl = new Uri(_appSettings.MusmetaniacApiBaseUrl);
         }
 
@@ -35,20 +38,21 @@ namespace Musmetaniac.Web.Client
 
         private HttpRequestMessage CreateRequestMessage<TParams>(HttpMethod httpMethod, string relativeUrl, TParams? parameters = null) where TParams : class
         {
+            var requestMessage = new HttpRequestMessage { Method = httpMethod };
             var uriBuilder = new UriBuilder(new Uri(_baseUrl, relativeUrl).ToString());
 
-            if (httpMethod == HttpMethod.Get && parameters != null)
-                uriBuilder.Query = parameters.ToQueryString().ToUriComponent();
-
-            var requestMessage = new HttpRequestMessage
+            if (parameters != null)
             {
-                Method = httpMethod,
-                RequestUri = uriBuilder.Uri,
-                Headers = { { "x-functions-key", _appSettings.MusmetaniacApiAzureFunctionsKey } },
-            };
+                if (httpMethod == HttpMethod.Get)
+                    uriBuilder.Query = parameters.ToQueryString().ToUriComponent();
+                else
+                    requestMessage.Content = new StringContent(parameters.ToJson());
+            }
 
-            if (httpMethod != HttpMethod.Get && parameters != null)
-                requestMessage.Content = new StringContent(parameters.ToJson());
+            requestMessage.RequestUri = uriBuilder.Uri;
+
+            if (!_hostEnvironment.IsDevelopment())
+                requestMessage.Headers.Add("x-functions-key", _appSettings.MusmetaniacApiAzureFunctionsKey);
 
             return requestMessage;
         }
