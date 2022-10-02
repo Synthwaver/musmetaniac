@@ -2,12 +2,13 @@
 @using Musmetaniac.Web.Common.Models
 @inject IPollingHelper _pollingHelper
 @inject IMusmetaniacApiRequestMessageProvider _musmetaniacApiRequestMessageProvider
+@inject NavigationManager _navigation
 
 <PageTitle>Recent tracks</PageTitle>
 
 <h1>Recent Tracks</h1>
 
-Username <input type="text" value="@_insertedUsername" @onchange="HandleUsernameChange"/>
+Username <input type="text" value="@InsertedUsername" @onchange="HandleUsernameChange"/>
 <button class="btn btn-primary" @onclick="HandleUpdateClick">Update</button>
 <br/>
 
@@ -77,6 +78,17 @@ Limit
     private int _trackLimit = 3;
     private string? _errorMessage;
 
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "username")]
+    public string InsertedUsername
+    {
+        get => _insertedUsername;
+        set {
+            _insertedUsername = value;
+            _navigation.NavigateTo(_navigation.GetUriWithQueryParameter("username", value == "" ? null : value));
+        }
+    }
+
     public void Dispose()
     {
         _recentTracksPollingJob.Dispose();
@@ -112,7 +124,7 @@ Limit
 
     private void HandleUsernameChange(ChangeEventArgs e)
     {
-        _insertedUsername = e.Value?.ToString() ?? "";
+        InsertedUsername = e.Value?.ToString() ?? "";
     }
 
     private void HandleLimitChange(ChangeEventArgs e)
@@ -131,7 +143,7 @@ Limit
     {
         _recentTracksPollingJob.Stop();
         _errorMessage = null;
-        _username = _insertedUsername;
+        _username = InsertedUsername;
 
         if (_username.IsNullOrEmpty())
         {
