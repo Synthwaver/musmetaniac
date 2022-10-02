@@ -11,7 +11,7 @@
   "linkerEnabled": true,
   "resources": {
     "assembly": {
-      "Microsoft.AspNetCore.Components.dll": "sha256-fpaDL96bClaKiRLbAMX\/7HsMB2Q9KlwYCNsZJ3dgCmA=",
+      "Microsoft.AspNetCore.Components.dll": "sha256-ni9O185ExmC93etS6kkRHubDffYoYGesQljGbjzJnxA=",
       "Microsoft.AspNetCore.Components.Web.dll": "sha256-bxsed\/f9HGk8R07pPYy+tQtareorErblCp0tHBblkrE=",
       "Microsoft.AspNetCore.Components.WebAssembly.dll": "sha256-z6FMWEI6vIG0hogZ0Bfm5FWR+C7tc8XpFozMCskYsVI=",
       "Microsoft.AspNetCore.Http.Abstractions.dll": "sha256-qFKmKNr9iAZiZxOVvLJBfMhkKfDy1GvY81fHh1hiphU=",
@@ -34,7 +34,7 @@
       "Microsoft.JSInterop.WebAssembly.dll": "sha256-DI0RkZky47FtF3\/3VasOGjpMhrR+H3kb1cv\/2kzJoBQ=",
       "Microsoft.Net.Http.Headers.dll": "sha256-P66ftDrXwc6ayND8uYzIk0CPQy1GjNZAPHx9RMhi3V4=",
       "Musmetaniac.Common.dll": "sha256-Y2AahpItWDH2Ls1F9I8\/pa+PaKtxuUNlb\/p8ikoEtws=",
-      "Musmetaniac.Web.Client.dll": "sha256-+AlRMrh3raYk2kORn\/F3u81e2b8lzF0vcKei2IXXE6M=",
+      "Musmetaniac.Web.Client.dll": "sha256-ITFE\/LcI7rL9h6MhRBS0635XaG7GpO\/9CJQkcye+jNs=",
       "Musmetaniac.Web.Common.dll": "sha256-ftYOyH1RVr0IH0sOwwun9etQS2IqVaA6nDyPAI5WSvA=",
       "netstandard.dll": "sha256-Pj3F2wrCdxqC07oPiN7KHatAsaS+v3lEe5XqAoUrvfU=",
       "Newtonsoft.Json.dll": "sha256-cs8pHUurDt0IqbB8YXPh560au3q3J\/1wRL9jBddRVmE=",
