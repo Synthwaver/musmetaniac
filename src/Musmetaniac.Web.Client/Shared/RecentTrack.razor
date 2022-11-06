@@ -1,0 +1,32 @@
+﻿@using Musmetaniac.Web.Common.Models
+
+<Card>
+    <TitleTemplate>
+        <a href="@Track.Url" target="_blank">@Track.Name</a> – @Track.ArtistName
+        @if (Track.IsPlayingNow)
+        {
+            <Text> (Playing Now)</Text>
+            
+        }
+    </TitleTemplate>
+    <Body>
+        @if (!Track.TopTags.Any())
+        {
+            <Text>No tags</Text>
+        }
+        else
+        {
+            @foreach (var tag in Track.TopTags)
+            {
+                <Tag Color="#cd201f"><a href="@tag.Url" target="_blank">@tag.Name</a></Tag>
+            }
+        }
+        <a href="@(Track.Url + "/+tags")" target="_blank"> View on Last.fm</a>
+    </Body>
+</Card>
+
+@code
+{
+    [Parameter]
+    public RecentTracksModel.Track Track { get; set; } = null!;
+}

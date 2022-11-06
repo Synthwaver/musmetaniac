@@ -1,34 +1,23 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Musmetaniac</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-</div>
+﻿<Menu Mode="MenuMode.Inline" Theme="MenuTheme.Light" OnMenuItemClicked="HandleMenuItemClicked">
+    <MenuItem RouterMatch="NavLinkMatch.All" RouterLink="" Icon="home">
+        Home
+    </MenuItem>
+    <MenuItem RouterMatch="NavLinkMatch.Prefix" RouterLink="recenttracks" Icon="bars">
+        Recent Tracks
+    </MenuItem>
+    <MenuItem Icon="github">
+        <a href="https://github.com/Synthwaver/musmetaniac" target="_blank">GitHub</a>
+    </MenuItem>
+</Menu>
 
-<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="oi oi-home" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="recenttracks">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> Recent Tracks
-            </NavLink>
-        </div>
-    </nav>
-</div>
+@code
+{
+    [Parameter]
+    public EventCallback OnMenuItemClicked { get; set; }
 
-@code {
-    private bool _collapseNavMenu = true;
-
-    private string? NavMenuCssClass => _collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
+    private async Task HandleMenuItemClicked()
     {
-        _collapseNavMenu = !_collapseNavMenu;
+        await Task.Delay(TimeSpan.FromMilliseconds(50));
+        await OnMenuItemClicked.InvokeAsync();
     }
 }

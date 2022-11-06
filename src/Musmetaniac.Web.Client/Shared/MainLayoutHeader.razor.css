@@ -1,0 +1,28 @@
+.layoutHeaderWrapper
+{
+    position: fixed;
+}
+
+::deep .brandName
+{
+    display: inline;
+    margin: 0;
+    color: #fff;
+    text-shadow: 0 0 2px #fff, 0 0 10px #3da7ff;
+    user-select: none;
+}
+
+::deep .openNavMenuButton
+{
+    padding: 0;
+    position: fixed;
+    left: 24px;
+}
+
+@media (min-width: 641px)
+{
+    ::deep .openNavMenuButton
+    {
+        display: none;
+    }
+}

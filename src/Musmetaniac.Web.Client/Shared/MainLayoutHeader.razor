@@ -1,0 +1,21 @@
+﻿<div class="layoutHeaderWrapper">
+    <Header Class="layoutHeader">
+        <Button
+            Class="layoutHeaderButton openNavMenuButton"
+            Size="@InputSize.Large"
+            Type="@ButtonType.Text"
+            OnClick="@OnNavMenuButtonClick"
+        >
+            <Icon Type="menu" Theme="outline"/>
+        </Button>
+        <Title Level="3" Class="brandName">
+            Musmetaniac
+        </Title>
+    </Header>
+</div>
+
+@code
+{
+    [Parameter]
+    public EventCallback OnNavMenuButtonClick { get; set; }
+}

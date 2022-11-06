@@ -12,6 +12,7 @@ builder.Services.ConfigureOptions<AppSettings>(builder.Configuration.GetSection(
 builder.Services.AddSingleton<HttpClient>();
 builder.Services.AddSingleton<IPollingHelper, PollingHelper>();
 builder.Services.AddSingleton<IMusmetaniacApiRequestMessageProvider, MusmetaniacApiRequestMessageProvider>();
+builder.Services.AddAntDesign();
 
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");

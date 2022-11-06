@@ -1,0 +1,46 @@
+﻿<div>
+    <Sider Class="staticNavMenuSidebar">
+        <div class="navMenuSidebarContent">
+            <NavMenu OnMenuItemClicked="OnCollapsibleNavMenuClose"/>
+        </div>
+    </Sider>
+
+    <Drawer
+        Class="collapsibleNavMenuSidebar"
+        Placement="left"
+        Closable="false"
+        Visible="IsCollapsibleNavMenuOpen"
+        OnClose="OnCollapsibleNavMenuClose"
+        BodyStyle="padding: 0;"
+        Width="200"
+    >
+        <Layout>
+            <div class="layoutHeaderWrapper">
+                <Header Class="layoutHeader">
+                    <Button Class="layoutHeaderButton closeNavMenuButton" Type="@ButtonType.Text" OnClick="@OnCollapsibleNavMenuClose">
+                        <Space Size=@("5")>
+                            <SpaceItem>
+                                <Icon Type="close" Theme="outline"/>
+                            </SpaceItem>
+                            <SpaceItem Style="font-size: 15px;">
+                                Close
+                            </SpaceItem>
+                        </Space>
+                    </Button>
+                </Header>
+            </div>
+            <Layout Class="navMenuSidebarContent">
+                <NavMenu OnMenuItemClicked="OnCollapsibleNavMenuClose"/>
+            </Layout>
+        </Layout>
+    </Drawer>
+</div>
+
+@code
+{
+    [Parameter]
+    public bool IsCollapsibleNavMenuOpen { get; set; } = true;
+
+    [Parameter]
+    public EventCallback OnCollapsibleNavMenuClose { get; set; }
+}

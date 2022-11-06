@@ -1,0 +1,41 @@
+::deep .layoutHeader
+{
+    padding: 0;
+}
+
+::deep .closeNavMenuButton
+{
+    height: 100%;
+    width: 100%;
+}
+
+::deep .navMenuSidebarContent
+{
+    height: 100%;
+    padding: 30px 0;
+    background: #fff;
+}
+
+::deep .staticNavMenuSidebar
+{
+    position: fixed;
+    height: 100%;
+    box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.11);
+}
+
+@media (min-width: 641px)
+{
+    ::deep .collapsibleNavMenuSidebar
+    {
+        display: none;
+    }
+}
+
+@media (max-width: 640.98px)
+{
+    ::deep .staticNavMenuSidebar
+    {
+        display: none;
+        width: 0;
+    }
+}
