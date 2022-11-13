@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Musmetaniac.Services.Exceptions;
 using Musmetaniac.Services.LastFmApi.Models.User;
 using Newtonsoft.Json.Linq;
 
@@ -35,6 +36,10 @@ namespace Musmetaniac.Services.LastFmApi.Clients
                 tracksJToken = new JArray(tracksJToken);
 
             var tracks = tracksJToken.ToObject<GetRecentTracksApiResponseModel.Track[]>()!;
+
+            // Last.fm API is very buggy and can sometimes return a large list of random tracks not related to the user
+            if (tracks.Length > model.Limit + 1)
+                throw new LastFmApiRequestException("Unexpected number of tracks received.");
 
             return new GetRecentTracksModel
             {
