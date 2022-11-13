@@ -1,5 +1,5 @@
-﻿@using Musmetaniac.Web.Common.Models
-@using System.Threading
+﻿@using System.Threading
+@using Musmetaniac.Web.Common.Models
 
 @page "/recenttracks"
 
@@ -19,12 +19,18 @@
     <Body>
         <Space Direction="DirectionVHType.Vertical" Style="display: unset;">
             <SpaceItem style="display: flex; gap: 5px;">
-                <Input Id="username" Placeholder="Username" @bind-Value="@InsertedUsername" Size="@InputSize.Large" AllowClear />
+                <Input Id="username" Placeholder="Username" @bind-Value="@InsertedUsername" Size="@InputSize.Large" Disabled="@_isUsernameSet" />
+                @if (_isUsernameSet)
+                {
+                    <Button Type="@ButtonType.Default" Icon="@IconType.Outline.Edit" OnClick="@HandleEditUsernameClick" Size="@InputSize.Large"></Button>
+                }
                 <Button
                     Type="@ButtonType.Primary"
-                    Icon="@(_isRecentTracksFirstRequestSuccessful ? IconType.Outline.Reload : IconType.Outline.ArrowRight)"
-                    OnClick="@HandleRefreshClickAsync"
+                    Icon="@(_isUsernameSet ? IconType.Outline.Reload : IconType.Outline.ArrowRight)"
+                    OnClick="@RefreshRecentTracksAsync"
                     Size="@InputSize.Large"
+                    Loading="@_isLoadingInProgress"
+                    Disabled="@_isLoadingInProgress"
                 >
                 </Button>
             </SpaceItem>
@@ -41,11 +47,22 @@
                     TItemValue="int"
                     DataSource="new[] { 5, 10, 15 }"
                     Value="@_trackLimit"
-                    ValueChanged="v => HandleLimitChange(v)"
+                    ValueChanged="v => HandleLimitChangeAsync(v)"
                     Size="@InputSize.Small"
                     Style="width: 60px;"
                 >
                 </Select>
+            </SpaceItem>
+            <SpaceItem>
+                Auto-refresh
+                <Switch Checked="@_isAutoRefreshEnabled" OnChange="@HandleAutoRefreshOptionChange">
+                    <CheckedChildrenTemplate>
+                        <Icon Type="check"></Icon>
+                    </CheckedChildrenTemplate>
+                    <UnCheckedChildrenTemplate>
+                        <Icon Type="close"></Icon>
+                    </UnCheckedChildrenTemplate>
+                </Switch>
             </SpaceItem>
         </Space>
     </Body>
@@ -63,15 +80,17 @@
 }
 
 @code {
-    private readonly TimeSpan _pollingPeriod = TimeSpan.FromSeconds(5);
+    private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(7);
 
     private List<RecentTracksModel.Track> _recentTracks = new();
     private RecurringJob _recentTracksPollingJob = null!;
     private CancellationTokenSource? _recentTracksFirstRequestCancellationTokenSource;
-    private bool _isRecentTracksFirstRequestSuccessful;
+    private bool _isLoadingInProgress;
+    private bool _isUsernameSet;
     private string _insertedUsername = "";
     private string _username = "";
     private int _trackLimit = 5;
+    private bool _isAutoRefreshEnabled = true;
     private string? _errorMessage;
 
     [Parameter]
@@ -98,36 +117,56 @@
 
     protected override void OnInitialized()
     {
-        _recentTracksPollingJob = _recurringJobFactory.CreateRecurringJob(RefreshRecentTracks, _pollingPeriod);
+        _recentTracksPollingJob = _recurringJobFactory.CreateRecurringJob(RefreshRecentTracks, _pollingInterval);
 
-        Task RefreshRecentTracks(CancellationToken cancellationToken) => _httpClient.SendRequestAsync<RecentTracksModel>(GetRecentTracksRequestMessage,
-            successCallback: model =>
+        Task RefreshRecentTracks(CancellationToken cancellationToken) => _httpClient.SendRequestAsync<RecentTracksModel>(GetRecentTracksRequestMessage, cancellationToken,
+            successCallback: model => AddRecentTracks(model.Tracks),
+            executionStartedCallback: () =>
             {
-                // The track playing now is temporary and is updated with each request.
-                // Since it may stop playing and disappear from the list, we always store one more track
-                // to display tracks according to the selected limit.
-                _recentTracks.RemoveAll(t => t.IsPlayingNow);
-                _recentTracks = model.Tracks.Concat(_recentTracks).Take(_trackLimit + 1).ToList();
+                _isLoadingInProgress = true;
                 StateHasChanged();
             },
-            cancellationToken: cancellationToken);
+            executionFinishedCallback: () =>
+            {
+                _isLoadingInProgress = false;
+                StateHasChanged();
+            });
     }
 
-    private void HandleLimitChange(int value)
+    private async Task HandleLimitChangeAsync(int value)
     {
-        var shouldResumePolling = _recentTracksPollingJob.IsStarted;
+        if (_trackLimit == value)
+            return;
+            
         _recentTracksPollingJob.Stop();
-
-        _trackLimit = value;
         _recentTracks.Clear();
+        _trackLimit = value;
 
-        if (shouldResumePolling)
-            _recentTracksPollingJob.Run();
+        if (_isUsernameSet)
+            await RefreshRecentTracksAsync();
     }
 
-    private async Task HandleRefreshClickAsync()
+    private void HandleAutoRefreshOptionChange(bool value)
     {
-        var isFirstRequest = !_recentTracksPollingJob.IsStarted;
+        if (value && _isUsernameSet)
+            _recentTracksPollingJob.Run();
+        else
+            _recentTracksPollingJob.Stop();
+
+        _isAutoRefreshEnabled = value;
+    }
+
+    private void HandleEditUsernameClick()
+    {
+        _isUsernameSet = false;
+        CancelRecentTracksFirstRequestAndDisposeTokenSource();
+        _recentTracksPollingJob.Stop();
+        _recentTracks.Clear();
+    }
+
+    private async Task RefreshRecentTracksAsync()
+    {
+        var shouldResumePollingJob = _recentTracksPollingJob.IsStarted;
         _recentTracksPollingJob.Stop();
 
         _errorMessage = null;
@@ -136,32 +175,42 @@
         if (_username.IsNullOrEmpty())
         {
             _errorMessage = "Username is required.";
-            _recentTracks.Clear();
-
             return;
         }
 
-        if (isFirstRequest)
+        _isUsernameSet = true;
+
+        if (shouldResumePollingJob)
+            _recentTracksPollingJob.Run();
+        else
         {
             _recentTracksFirstRequestCancellationTokenSource ??= new CancellationTokenSource();
 
-            await _httpClient.SendRequestAsync<RecentTracksModel>(GetRecentTracksRequestMessage,
+            await _httpClient.SendRequestAsync<RecentTracksModel>(GetRecentTracksRequestMessage, _recentTracksFirstRequestCancellationTokenSource.Token,
                 successCallback: model =>
                 {
-                    _isRecentTracksFirstRequestSuccessful = true;
-                    _recentTracks = model.Tracks.ToList();
-                    _recentTracksPollingJob.Run();
+                    AddRecentTracks(model.Tracks);
+
+                    if (_isAutoRefreshEnabled)
+                        _recentTracksPollingJob.Run();
                 },
                 failureCallback: message =>
                 {
-                    _isRecentTracksFirstRequestSuccessful = false;
+                    _isUsernameSet = false;
                     _errorMessage = message;
                 },
-                finallyCallback: StateHasChanged,
-                _recentTracksFirstRequestCancellationTokenSource.Token);
+                executionStartedCallback: () => _isLoadingInProgress = true,
+                executionFinishedCallback: () => _isLoadingInProgress = false);
         }
-        else
-            _recentTracksPollingJob.Run();
+    }
+
+    private void AddRecentTracks(IEnumerable<RecentTracksModel.Track> newTracks)
+    {
+        // The track playing now is temporary and is updated with each request.
+        // Since it may stop playing and disappear from the list, we always store one more track
+        // to display tracks according to the selected limit.
+        _recentTracks.RemoveAll(t => t.IsPlayingNow);
+        _recentTracks = newTracks.Concat(_recentTracks).Take(_trackLimit + 1).ToList();
     }
 
     private HttpRequestMessage GetRecentTracksRequestMessage()

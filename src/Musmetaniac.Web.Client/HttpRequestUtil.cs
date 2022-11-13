@@ -12,12 +12,14 @@ namespace Musmetaniac.Web.Client
         public static async Task SendAsync<TResult>(
             HttpClient httpClient,
             Func<HttpRequestMessage> requestMessageFactory,
+            CancellationToken? cancellationToken = null,
             Action<TResult>? successCallback = null,
             Action<string>? failureCallback = null,
-            Action? finallyCallback = null,
-            CancellationToken? cancellationToken = null)
+            Action? executionStartedCallback = null,
+            Action? executionFinishedCallback = null)
             where TResult : class
         {
+            executionStartedCallback?.Invoke();
             cancellationToken ??= CancellationToken.None;
 
             HttpResponseMessage? response = null;
@@ -54,7 +56,7 @@ namespace Musmetaniac.Web.Client
             }
             finally
             {
-                finallyCallback?.Invoke();
+                executionFinishedCallback?.Invoke();
             }
         }
     }

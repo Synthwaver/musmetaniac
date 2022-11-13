@@ -9,13 +9,15 @@ namespace Musmetaniac.Web.Client.Extensions
     {
         public static Task SendRequestAsync<TResult>(this HttpClient self,
             Func<HttpRequestMessage> requestMessageFactory,
+            CancellationToken? cancellationToken = null,
             Action<TResult>? successCallback = null,
             Action<string>? failureCallback = null,
-            Action? finallyCallback = null,
-            CancellationToken? cancellationToken = null)
+            Action? executionStartedCallback = null,
+            Action? executionFinishedCallback = null)
             where TResult : class
         {
-            return HttpRequestUtil.SendAsync(self, requestMessageFactory, successCallback, failureCallback, finallyCallback, cancellationToken);
+            return HttpRequestUtil.SendAsync(self, requestMessageFactory, cancellationToken,
+                successCallback, failureCallback, executionStartedCallback, executionFinishedCallback);
         }
     }
 }
