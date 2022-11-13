@@ -1,12 +1,14 @@
 ﻿@using Musmetaniac.Web.Common.Models
+@using System.Threading
 
 @page "/recenttracks"
 
 @implements IDisposable
 
-@inject IPollingHelper _pollingHelper
+@inject IRecurringJobFactory _recurringJobFactory
 @inject IMusmetaniacApiRequestMessageProvider _musmetaniacApiRequestMessageProvider
 @inject NavigationManager _navigation
+@inject HttpClient _httpClient
 
 <PageTitle>Recent tracks</PageTitle>
 
@@ -18,7 +20,13 @@
         <Space Direction="DirectionVHType.Vertical" Style="display: unset;">
             <SpaceItem style="display: flex; gap: 5px;">
                 <Input Id="username" Placeholder="Username" @bind-Value="@InsertedUsername" Size="@InputSize.Large" AllowClear />
-                <Button Type="@ButtonType.Primary" Icon="@IconType.Outline.ArrowRight" OnClick="@HandleUpdateClick" Size="@InputSize.Large"></Button>
+                <Button
+                    Type="@ButtonType.Primary"
+                    Icon="@(_isRecentTracksFirstRequestSuccessful ? IconType.Outline.Reload : IconType.Outline.ArrowRight)"
+                    OnClick="@HandleRefreshClickAsync"
+                    Size="@InputSize.Large"
+                >
+                </Button>
             </SpaceItem>
             @if (!_errorMessage.IsNullOrEmpty())
             {
@@ -58,8 +66,9 @@
     private readonly TimeSpan _pollingPeriod = TimeSpan.FromSeconds(5);
 
     private List<RecentTracksModel.Track> _recentTracks = new();
-    private PollingJob<RecentTracksModel> _recentTracksPollingJob = null!;
-
+    private RecurringJob _recentTracksPollingJob = null!;
+    private CancellationTokenSource? _recentTracksFirstRequestCancellationTokenSource;
+    private bool _isRecentTracksFirstRequestSuccessful;
     private string _insertedUsername = "";
     private string _username = "";
     private int _trackLimit = 5;
@@ -83,33 +92,25 @@
     public void Dispose()
     {
         _recentTracksPollingJob.Dispose();
+        CancelRecentTracksFirstRequestAndDisposeTokenSource();
         GC.SuppressFinalize(this);
     }
 
     protected override void OnInitialized()
     {
-        _recentTracksPollingJob = _pollingHelper.CreatePollingJob(GetRecentTracksRequestMessage, new PollingJobOptions<RecentTracksModel>
-        {
-            SuccessCallback = model =>
+        _recentTracksPollingJob = _recurringJobFactory.CreateRecurringJob(RefreshRecentTracks, _pollingPeriod);
+
+        Task RefreshRecentTracks(CancellationToken cancellationToken) => _httpClient.SendRequestAsync<RecentTracksModel>(GetRecentTracksRequestMessage,
+            successCallback: model =>
             {
                 // The track playing now is temporary and is updated with each request.
                 // Since it may stop playing and disappear from the list, we always store one more track
                 // to display tracks according to the selected limit.
                 _recentTracks.RemoveAll(t => t.IsPlayingNow);
                 _recentTracks = model.Tracks.Concat(_recentTracks).Take(_trackLimit + 1).ToList();
+                StateHasChanged();
             },
-            FailureCallback = message => _errorMessage = message,
-            FinallyCallback = StateHasChanged,
-            PollingPeriod = _pollingPeriod,
-            StopOnFail = true,
-        });
-
-        HttpRequestMessage GetRecentTracksRequestMessage()
-        {
-            var mostRecentTrackScrobbledAt = _recentTracks.FirstOrDefault(t => !t.IsPlayingNow)?.ScrobbledAt;
-
-            return _musmetaniacApiRequestMessageProvider.GetRecentTracksRequestMessage(_username, _trackLimit, from: mostRecentTrackScrobbledAt?.AddSeconds(1));
-        }
+            cancellationToken: cancellationToken);
     }
 
     private void HandleLimitChange(int value)
@@ -124,9 +125,11 @@
             _recentTracksPollingJob.Run();
     }
 
-    private void HandleUpdateClick()
+    private async Task HandleRefreshClickAsync()
     {
+        var isFirstRequest = !_recentTracksPollingJob.IsStarted;
         _recentTracksPollingJob.Stop();
+
         _errorMessage = null;
         _username = InsertedUsername;
 
@@ -138,6 +141,40 @@
             return;
         }
 
-        _recentTracksPollingJob.Run();
+        if (isFirstRequest)
+        {
+            _recentTracksFirstRequestCancellationTokenSource ??= new CancellationTokenSource();
+
+            await _httpClient.SendRequestAsync<RecentTracksModel>(GetRecentTracksRequestMessage,
+                successCallback: model =>
+                {
+                    _isRecentTracksFirstRequestSuccessful = true;
+                    _recentTracks = model.Tracks.ToList();
+                    _recentTracksPollingJob.Run();
+                },
+                failureCallback: message =>
+                {
+                    _isRecentTracksFirstRequestSuccessful = false;
+                    _errorMessage = message;
+                },
+                finallyCallback: StateHasChanged,
+                _recentTracksFirstRequestCancellationTokenSource.Token);
+        }
+        else
+            _recentTracksPollingJob.Run();
+    }
+
+    private HttpRequestMessage GetRecentTracksRequestMessage()
+    {
+        var mostRecentTrackScrobbledAt = _recentTracks.FirstOrDefault(t => !t.IsPlayingNow)?.ScrobbledAt;
+
+        return _musmetaniacApiRequestMessageProvider.GetRecentTracksRequestMessage(_username, _trackLimit, from: mostRecentTrackScrobbledAt?.AddSeconds(1));
+    }
+
+    private void CancelRecentTracksFirstRequestAndDisposeTokenSource()
+    {
+        _recentTracksFirstRequestCancellationTokenSource?.Cancel();
+        _recentTracksFirstRequestCancellationTokenSource?.Dispose();
+        _recentTracksFirstRequestCancellationTokenSource = null;
     }
 }

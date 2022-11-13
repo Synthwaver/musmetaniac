@@ -38,10 +38,10 @@ namespace Musmetaniac.Services
 
             using var lastFmApiClient = new LastFmApiClient(_serviceAppSettings.LastFmApiKey);
 
-            GetRecentTracksModel resentTracksModel;
+            GetRecentTracksModel recentTracksModel;
             try
             {
-                resentTracksModel = await lastFmApiClient.User.GetRecentTracksAsync(new GetRecentTracksRequestModel
+                recentTracksModel = await lastFmApiClient.User.GetRecentTracksAsync(new GetRecentTracksRequestModel
                 {
                     Username = username,
                     Limit = limit,
@@ -56,7 +56,7 @@ namespace Musmetaniac.Services
                 throw;
             }
 
-            var tracks = resentTracksModel.Tracks.Select(t => new Track
+            var tracks = recentTracksModel.Tracks.Select(t => new Track
             {
                 Name = t.Name,
                 ArtistName = t.Artist.Name,
