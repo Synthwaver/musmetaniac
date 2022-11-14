@@ -66,6 +66,11 @@
     align-items: center;
 }
 
+html
+{
+    overflow-y: scroll;
+}
+
 main
 {
     max-width: 900px;
