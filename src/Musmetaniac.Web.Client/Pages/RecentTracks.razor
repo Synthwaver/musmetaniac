@@ -22,7 +22,7 @@
                 <Input Id="username" Placeholder="Username" @bind-Value="@InsertedUsername" Size="@InputSize.Large" Disabled="@_isUsernameSet" />
                 @if (_isUsernameSet)
                 {
-                    <Button Type="@ButtonType.Default" Icon="@IconType.Outline.Edit" OnClick="@HandleEditUsernameClick" Size="@InputSize.Large"></Button>
+                    <Button Type="@ButtonType.Default" Icon="@IconType.Outline.Edit" OnClick="@ResetPageToUsernameEditState" Size="@InputSize.Large"></Button>
                 }
                 <Button
                     Type="@ButtonType.Primary"
@@ -133,6 +133,11 @@
             });
     }
 
+    protected override void OnParametersSet()
+    {
+        ResetPageToUsernameEditState();
+    }
+
     private async Task HandleLimitChangeAsync(int value)
     {
         if (_trackLimit == value)
@@ -154,14 +159,6 @@
             _recentTracksPollingJob.Stop();
 
         _isAutoRefreshEnabled = value;
-    }
-
-    private void HandleEditUsernameClick()
-    {
-        _isUsernameSet = false;
-        CancelRecentTracksFirstRequestAndDisposeTokenSource();
-        _recentTracksPollingJob.Stop();
-        _recentTracks.Clear();
     }
 
     private async Task RefreshRecentTracksAsync()
@@ -225,5 +222,14 @@
         _recentTracksFirstRequestCancellationTokenSource?.Cancel();
         _recentTracksFirstRequestCancellationTokenSource?.Dispose();
         _recentTracksFirstRequestCancellationTokenSource = null;
+    }
+
+    private void ResetPageToUsernameEditState()
+    {
+        CancelRecentTracksFirstRequestAndDisposeTokenSource();
+        _recentTracksPollingJob.Stop();
+        _recentTracks.Clear();
+        _isUsernameSet = false;
+        _errorMessage = null;
     }
 }
