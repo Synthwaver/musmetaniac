@@ -4,11 +4,16 @@
 
 <Card>
     <TitleTemplate>
-        <Title Level="3">Hello, world!</Title>
+        <Title Level="4">About</Title>
     </TitleTemplate>
     <Body>
-    <Card>
-        Welcome to my new app.
-    </Card>
+        <Paragraph>
+            The project is designed to display tags for recently listened tracks from <a href="https://www.last.fm" target="_blank">Last.fm</a>.
+        </Paragraph>
+        <Paragraph>
+            Now it often happens that no tags are displayed for a track. There are problems with database synchronization on the Last.fm side,
+            and the Last.fm API may return an empty list of tags for the track. Unfortunately they cannot say when this will be fixed.
+            But you can always click the <Text Code>View on Last.fm</Text> link and check tags there.
+        </Paragraph>
     </Body>
 </Card>
